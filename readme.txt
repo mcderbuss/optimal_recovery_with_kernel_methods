@@ -8,53 +8,51 @@ generating quasi-uniform collocation centers, performing parameter sweeps, and v
 
 ## Repository Contents
 
-| File / Folder                     | Purpose & Functionality |
-|-----------------------------------|------------------------|
-| `generate_quasi_centers.py`       | Generates well-distributed interior and boundary collocation points using a greedy 
-                                   fill-distance algorithm. Outputs an `.npz` file containing: <br>
-                                   - `interior_points` & `interior_fill_distances`<br>
-                                   - `boundary_points` & `boundary_fill_distances`<br>
-                                   These points serve as candidates for all subsequent collocation experiments. |
-| `comparing_widths.py`             | Performs a **kernel-width sweep** (`gamma`) for a fixed number of total points. Evaluates:<br>
-                                   - Maximum solution error<br>
-                                   - PDE residual error<br>
-                                   - Boundary residual error<br>
-                                   Exports per-gamma CSV results and produces log-scale error plots. Used for 
-                                   identifying optimal kernel widths. |
-| `errors_for_fixed_points.py`      | Sweeps the **total number of collocation points** (from 0 to a maximum) with a fixed 
-                                   interior-to-boundary ratio. Measures:<br>
-                                   - Solution error<br>
-                                   - PDE residual<br>
-                                   - Boundary residual<br>
-                                   Exports CSV and plots showing error evolution as the number of points increases. |
-| `ratios_with_dif_point_size.py`   | Explores the **best interior/boundary ratio** for each total number of points. For each 
-                                   configuration, finds the ratio that minimizes:<br>
-                                   - Maximum solution error<br>
-                                   - PDE residual<br>
-                                   - Boundary residual<br>
-                                   - Maximum of residual and boundary residual<br>
-                                   Exports detailed CSV results for ratio optimization. |
-| `test_ratios.py`                  | Scans **error vs boundary fraction** for a fixed total number of collocation points. Produces:<br>
-                                   - LaTeX/TikZ-ready coordinate output of error vs boundary ratio<br>
-                                   - Log-scale error plots<br>
-                                   Helps identify the boundary fraction that minimizes errors for a given total number of points. |
-| `generate_heatmap.py`            | Runs f-Greedy optimal recovery for **kernel**, `sin`, or `c2` solutions. Computes:<br>
-                                   - Per-iteration solution errors, PDE residuals, boundary residuals<br>
-                                   - Heatmaps of error and PDE residual on a 2D grid<br>
-                                   Outputs CSV files with timestamped results and visualizations of interpolation quality. |
+| File / Folder                   | Purpose & Functionality |
+|---------------------------------|------------------------|
+| `generate_quasi_centers.py`     | Generates well-distributed interior and boundary collocation points using a greedy fill- 
+                                 distance algorithm. Outputs an `.npz` file containing:<br>
+                                 - `interior_points` & `interior_fill_distances`<br>
+                                 - `boundary_points` & `boundary_fill_distances`<br>
+                                 These points serve as candidates for all subsequent collocation experiments. |
+| `comparing_widths.py`           | Performs a **kernel-width sweep** (`gamma`) for a fixed number of total points. Evaluates:<br>
+                                 - Maximum solution error<br>
+                                 - PDE residual error<br>
+                                 - Boundary residual error<br>
+                                 Exports per-gamma CSV results and produces log-scale error plots. Useful for 
+                                 identifying optimal kernel widths. |
+| `errors_for_fixed_points.py`    | Sweeps the **total number of collocation points** (from 0 to a maximum) with a fixed 
+                                 interior-to-boundary ratio. Measures:<br>
+                                 - Solution error<br>
+                                 - PDE residual<br>
+                                 - Boundary residual<br>
+                                 Exports CSV and plots showing error evolution as the number of points increases. |
+| `ratios_with_dif_point_size.py` | Explores the **best interior/boundary ratio** for each total number of points. Finds the ratio 
+                                 that minimizes:<br>
+                                 - Maximum solution error<br>
+                                 - PDE residual<br>
+                                 - Boundary residual<br>
+                                 - Maximum of residual and boundary residual<br>
+                                 Exports detailed CSV results for ratio optimization. |
+| `test_ratios.py`                | Scans **error vs boundary fraction** for a fixed total number of collocation points. Produces:<br>
+                                 - LaTeX/TikZ-ready coordinate output of error vs boundary ratio<br>
+                                 - Log-scale error plots<br>
+                                 Helps identify the boundary fraction that minimizes errors for a given total number of points. |
+| `generate_heatmap.py`           | Runs f-Greedy optimal recovery for **kernel**, `sin`, or `c2` solutions. Computes:<br>
+                                 - Per-iteration solution errors, PDE residuals, boundary residuals<br>
+                                 - Heatmaps of error and PDE residual on a 2D grid<br>
+                                 Outputs CSV files with timestamped results and visualizations of interpolation quality. |
 | `testing_greedy.py`             | Implements the **f-Greedy optimal recovery** method with selectable nonlinearity:<br>
-                                   - `poly`: τ(u) = u³<br>
-                                   - `sin` : τ(u) = (1/20) sin(πu)<br>
-                                   Records per-iteration:<br>
-                                   - Solution error<br>
-                                   - PDE residual<br>
-                                   - Boundary residual<br>
-                                   Exports CSV with timestamped results and generates log-scale plots. |
-| `assets/`                         | Python modules providing core utilities:<br>
-                                   - `Gaussian_Kernel_JIT.py`: Gaussian kernel and Laplacian evaluation with JIT 
-                                     acceleration<br>
-                                   - `collocation_functions.py`: Optimal recovery and collocation assembly functions 
-                                     (including `greedy_loop`) |
-| `results/`                        | CSV files and plots generated by all scripts. Organizes experiment outputs for reproducibility 
-                                   and analysis. |
-
+                                 - `poly`: τ(u) = u³<br>
+                                 - `sin` : τ(u) = (1/20) sin(πu)<br>
+                                 Records per-iteration:<br>
+                                 - Solution error<br>
+                                 - PDE residual<br>
+                                 - Boundary residual<br>
+                                 Exports CSV with timestamped results and generates log-scale plots. |
+| `assets/`                        | Python modules providing core utilities:<br>
+                                 - `Gaussian_Kernel_JIT.py`: Gaussian kernel and Laplacian evaluation with JIT acceleration<br>
+                                 - `collocation_functions.py`: Optimal recovery and collocation assembly functions 
+                                   (including `greedy_loop`) |
+| `results/`                       | CSV files and plots generated by all scripts. Organizes experiment outputs for reproducibility 
+                                 and analysis. |
