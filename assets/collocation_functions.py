@@ -13,16 +13,37 @@ import matplotlib.pyplot as plt
 
 
 def assemble_collocation_matrix(points, Kernel, boundary_points=np.array([])):
+    """
+    Assemble the collocation matrix for a system involving a kernel and its derivatives.
+    
+    Parameters
+    ----------
+    points : np.ndarray
+        Array of interior collocation points (shape: [n_points, dim]).
+    Kernel : object
+        Kernel object that provides methods for computing kernel matrices 
+        and their derivatives (Laplace operators).
+    boundary_points : np.ndarray, optional
+        Array of boundary points (default: empty array).
+    
+    Returns
+    -------
+    K : np.ndarray
+        The assembled collocation matrix of size (N x N), where 
+        N = 2 * n_points + n_boundary.
+    """
     n_points = points.shape[0]
     n_boundary = boundary_points.shape[0]
     N = 2 * n_points + n_boundary
     K = np.zeros((N, N))
 
+    #compute kernel values
     K[0:2*n_points:2, 0:2*n_points:2] = Kernel.kernel_matrix(points, points)
     K[0:2*n_points:2, 1:2*n_points:2] = Kernel.laplace_on_y_matrix(points, points)
     K[1:2*n_points:2, 0:2*n_points:2] = Kernel.laplace_on_x_matrix(points, points)
     K[1:2*n_points:2, 1:2*n_points:2] = Kernel.laplace_on_xy_matrix(points, points)
 
+    #insert kernel values in correct order
     if n_boundary > 0:
         row_b = slice(2 * n_points, N)
         col_u_even = slice(0, 2 * n_points, 2)
@@ -42,6 +63,48 @@ def assemble_collocation_matrix(points, Kernel, boundary_points=np.array([])):
 
 
 def optimal_recovery(points, tau, tau_der, right_hand_side, boundary_condition, z0, Kernel, boundary_points = np.array([]), use_gradient = False, method = 'gauss-newton', eps = 0, tau_2der=None):
+    """
+    Perform optimal recovery for PDE-constrained kernel interpolation.
+
+    Parameters
+    ----------
+    points : np.ndarray
+        Interior collocation points.
+    tau : callable
+        Nonlinear constraint function tau(z).
+    tau_der : callable
+        Derivative of tau(z).
+    right_hand_side : callable
+        Function defining the PDE right-hand side.
+    boundary_condition : callable
+        Boundary condition function for boundary points.
+    z0 : np.ndarray
+        Initial guess for the interior solution values.
+    Kernel : object
+        Kernel object with methods to compute kernel and Laplacian matrices.
+    boundary_points : np.ndarray, optional
+        Boundary collocation points (default: empty array).
+    use_gradient : bool, optional
+        If True, use gradient-based optimization when method='optimization'.
+    method : str, optional
+        Solution method, either 'gauss-newton' or 'optimization'.
+    eps : float, optional
+        Regularization parameter for stability (default: 0).
+    tau_2der : callable, optional
+        Second derivative of tau, required if Hessian is used in optimization.
+
+    Returns
+    -------
+    interpolant : callable
+        Function that evaluates the recovered interpolant at new points.
+    coeff : np.ndarray
+        Expansion coefficients of the kernel basis.
+    z_opt : np.ndarray
+        Optimized state vector (interior + boundary).
+    laplace_interpolant : callable
+        Function that evaluates the Laplacian of the interpolant.
+    """
+    # setup
     n_points=len(points)
     if len(boundary_points) != 0:
         n_boundary = boundary_points.shape[0]
@@ -52,21 +115,23 @@ def optimal_recovery(points, tau, tau_der, right_hand_side, boundary_condition, 
     L_inv = np.linalg.inv(np.linalg.cholesky(A))
     right_hand_vals = right_hand_side(points).flatten()
     
+    # optimization using scipy native methods
     if method == 'optimization':
         # Shared preallocated arrays
         z_inter = np.zeros(n_total, dtype=z0.dtype)
         grad_buffer = np.zeros_like(z0)
         g_vec = np.zeros(n_total, dtype=z0.dtype)
-        u_vec = np.zeros(n_total, dtype=z0.dtype)
         tau_z = np.zeros(n_points, dtype=z0.dtype)
         tau_dz = np.zeros(n_points, dtype=z0.dtype)
         tau_2dz = np.zeros(n_points, dtype=z0.dtype)
-
+        
+        #boundary contindition is fixed so we only set the values here once
         if n_boundary > 0:
             bc_vals = boundary_condition(boundary_points).ravel()
             z_inter[2 * n_points:] = bc_vals
             g_vec[2 * n_points:] = bc_vals
         
+        #define target function for optimization with derivatives in case they are needed
         def target_fun(z):
             tau_z[:] = tau(z)
             z_inter[0:2*n_points:2] = z
@@ -110,7 +175,7 @@ def optimal_recovery(points, tau, tau_der, right_hand_side, boundary_condition, 
 
             return np.diag(H1_diag + H2_diag)
         
-        # Optimize to find z minimizing target_fun
+        # Optimize to find z minimizing target_fun either with explicit gradient or scipy numerical gradient
         if use_gradient:
             minimizer_kwargs = {
                 "method": "trust-constr",
@@ -136,7 +201,8 @@ def optimal_recovery(points, tau, tau_der, right_hand_side, boundary_condition, 
         # Compute optimal interlaced solution
         # Compute the optimal interlaced solution
         optimal_z = res.x
-        
+    
+    # implementation of gauss-newton method for optimization
     elif method == 'gauss-newton':
         #pre allocate memory and precompute values
         z_inter = np.zeros(n_total, dtype=z0.dtype)
@@ -147,6 +213,7 @@ def optimal_recovery(points, tau, tau_der, right_hand_side, boundary_condition, 
         J = np.zeros((n_total, n_points))
         J[0:2*n_points:2, :] = np.eye(n_points)
         
+        #define nonlinearities
         def F_bar(z):
             tau_z = tau(z)
             z_inter[0:2*n_points:2] = z
@@ -158,7 +225,7 @@ def optimal_recovery(points, tau, tau_der, right_hand_side, boundary_condition, 
             return J
         
         optimal_z = z0
-        
+        # gauss newton iterations
         for l in range(100):
             F_l = F_bar(optimal_z)
             grad_F_l = grad_F_bar(optimal_z)
@@ -172,7 +239,7 @@ def optimal_recovery(points, tau, tau_der, right_hand_side, boundary_condition, 
                 break
             
             
-        
+    # compute coeffiecents from optimal solution    
     z_dash_opt = right_hand_side(points) - tau(optimal_z).reshape(-1, 1)
     z_opt = np.empty(2 * n_points + n_boundary, dtype=z0.dtype)
     z_opt[::2][:n_points] = optimal_z
@@ -181,7 +248,7 @@ def optimal_recovery(points, tau, tau_der, right_hand_side, boundary_condition, 
         z_opt[2 * n_points:] = boundary_condition(boundary_points).T
         
     coeff=scipy.linalg.solve(A, z_opt)
-    
+    #define interpolant for coefficients for return
     def interpolant(x):
         even_coeffs = coeff[0:2*n_points:2]  
         odd_coeffs = coeff[1:2*n_points:2]   
@@ -194,6 +261,7 @@ def optimal_recovery(points, tau, tau_der, right_hand_side, boundary_condition, 
         lap_result = np.dot(Kernel.laplace_on_x_matrix(points,x).T,odd_coeffs)
         return inter_result + boundary_result + lap_result
     
+    #define the laplacian of the interpolant for coefficients for return
     def laplace_interpolant(x):
         even_coeffs = coeff[0:2*n_points:2] 
         odd_coeffs = coeff[1:2*n_points:2]  
@@ -220,12 +288,70 @@ def greedy_loop(
     verbosity=False,
     eps = 0
 ):
+    """
+    Adaptive greedy loop for PDE recovery with kernel collocation.
+
+    At each iteration, the algorithm finds the worst residual (interior or boundary),
+    adds the corresponding point to the collocation set, and recomputes the 
+    interpolant using `optimal_recovery`. This adaptively refines the approximation
+    by focusing new points where the error is largest.
+
+    Parameters
+    ----------
+    tau : callable
+        Nonlinear constraint function tau(z).
+    tau_der : callable
+        Derivative of tau(z).
+    right_hand_side : callable
+        Right-hand side of the PDE.
+    boundary_condition : callable
+        Boundary condition function.
+    iter : int
+        Number of greedy iterations.
+    Kernel : object
+        Kernel object with methods for kernel and Laplacian matrices.
+    points : np.ndarray, optional
+        Initial interior collocation points (default: empty array).
+    boundary_points : np.ndarray, optional
+        Initial boundary collocation points (default: empty array).
+    sol : callable, optional
+        Exact solution (for error monitoring, default: None).
+    verbosity : bool, optional
+        If True, prints per-iteration diagnostics.
+    eps : float, optional
+        Regularization parameter for collocation matrix (default: 0).
+
+    Returns
+    -------
+    interpolant : callable
+        Final interpolant function.
+    coeff : np.ndarray
+        Kernel expansion coefficients.
+    points : np.ndarray
+        Final set of interior collocation points.
+    boundary_points : np.ndarray
+        Final set of boundary collocation points.
+    residuals : np.ndarray
+        Sequence of interior residuals per iteration.
+    boundary_residuals : np.ndarray
+        Sequence of boundary residuals per iteration.
+    errors : np.ndarray
+        Sup-norm error (if `sol` provided), else zeros.
+    failed_early : bool
+        True if recovery failed before completing all iterations.
+    times : np.ndarray
+        Wall-clock time for each iteration.
+    laplace_interpolant : callable
+        Function to evaluate Laplacian of the final interpolant.
+    """
+    # setup
     errors = np.zeros(iter)
     residuals = np.zeros(iter)
     boundary_residuals = np.zeros(iter)
     failed_early = False
     times = np.zeros(iter)
 
+    #method to find the next interiour greedy point to
     def worst_res_interior(interpolant, laplace_interpolant, grid_size=100):
         def res(x):
             return np.abs(laplace_interpolant(x) + tau(interpolant(x)) - right_hand_side(x).flatten())
@@ -236,6 +362,7 @@ def greedy_loop(
         worst_index = np.argmax(residuals)
         return grid_points[worst_index], residuals[worst_index]
 
+    #method to find the next boundary greedy point to
     def worst_res_boundary(interpolant, grid_size=100):
         boundary_x = np.linspace(0, 1, grid_size)
         boundary_y = np.linspace(0, 1, grid_size)
@@ -248,6 +375,7 @@ def greedy_loop(
         worst_index = np.argmax(residuals)
         return boundary_points[worst_index], residuals[worst_index]
 
+    # set up the first interpolant
     if len(points) == 0 and len(boundary_points) == 0:
         interpolant = lambda x: np.array([0.])
         laplace_interpolant = lambda x: np.array([0.])
@@ -261,26 +389,29 @@ def greedy_loop(
     else:
         raise ValueError("When boundary points are given, interior points must also be provided.")
 
+    #greedy loop
     for i in range(iter):
         start_time = time.time()
         if verbosity:
             print(f'Iteration {i + 1} out of {iter}.')
-
+        #find next greedy point options
         worst_interior = worst_res_interior(interpolant, laplace_interpolant)
         worst_boundary = worst_res_boundary(interpolant)
 
+        # select boundary point for every fourth iteration otherwise interiour point
         if  (i+1) %4 != 0:
             points = worst_interior[0].reshape(1, -1) if len(points) == 0 else np.vstack([points, worst_interior[0]])
         else:
             boundary_points = worst_boundary[0].reshape(1, -1) if len(boundary_points) == 0 else np.vstack([boundary_points, worst_boundary[0]])
 
+        #remember residuals for analysis
         residuals[i] = abs(worst_interior[1]).item()
         boundary_residuals[i] = abs(worst_boundary[1]).item()
 
         if verbosity:
             print(f'Residual before iteration: {residuals[i]}')
             print(f'Boundary residual before iteration: {boundary_residuals[i]}')
-
+        # compute interpolant for new centres, if it failes stop the programm
         try:
             interpolant, coeff, z_opt, laplace_interpolant = optimal_recovery(
                 points, tau, tau_der, right_hand_side, boundary_condition,
@@ -298,7 +429,8 @@ def greedy_loop(
                 traceback.print_exc()
             failed_early = True
             break
-
+        
+        #record infty norm error
         if sol is not None:
             func = lambda x: abs(interpolant(x) - sol(x).flatten())
             grid_x = np.linspace(1 / 100, 1 - 1 / 100, 100)

@@ -8,6 +8,7 @@ from itertools import product
 from concurrent.futures import ThreadPoolExecutor
 
 def array_factorial(array):
+    """Return the product of factorials of elements in array."""
     result = 1
     for a in array:
         result *= math.factorial(a)
@@ -68,6 +69,7 @@ def reconstruct_alpha(occurrence_vector):
     return [i for i, count in enumerate(occurrence_vector) for _ in range(count)]
 
 def kron_del(i,j):
+    #kroneker delta
     if i == j:
         return 1
     else:

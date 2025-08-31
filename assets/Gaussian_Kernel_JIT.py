@@ -25,6 +25,7 @@ def phi_4(r, width):
     r_sq = r * r
     return (16 * (gamma_sq * r_sq) ** 2 - 48 * gamma_sq * width * r_sq + 12 * gamma_sq) * np.exp(-width * r_sq)
 
+#evaluate the kernel for two series of points
 @njit(fastmath=True)
 def kernel_pointwise(x, y, width):
     n = x.shape[0]
@@ -36,6 +37,7 @@ def kernel_pointwise(x, y, width):
         result[i] = phi(r, width)
     return result
 
+#evaluate laplace of the kernel for two series of points
 @njit(fastmath=True)
 def laplace_on_x(x, y, width):
     n = x.shape[0]
@@ -52,6 +54,7 @@ def laplace_on_x(x, y, width):
     
 # ======== JIT-compiled matrix routines ========
 
+#kernel matrix computation
 @njit(parallel=True, fastmath=True)
 def kernel_matrix(x, y, width):
     nx, ny = x.shape[0], y.shape[0]
@@ -63,7 +66,7 @@ def kernel_matrix(x, y, width):
             r = np.sqrt(dx * dx + dy * dy)
             result[i, j] = phi(r, width)
     return result
-
+#laplacian kernel matrix
 @njit(parallel=True, fastmath=True)
 def laplace_on_x_matrix(x, y, width):
     nx, ny = x.shape[0], y.shape[0]
@@ -76,6 +79,7 @@ def laplace_on_x_matrix(x, y, width):
             result[i, j] = phi_2(r, width) - 2 * width * phi(r, width)
     return result
 
+#laplacian on both components kernel matrix
 @njit(parallel=True, fastmath=True)
 def laplace_on_xy_matrix(x, y, width):
     nx, ny = x.shape[0], y.shape[0]
@@ -94,6 +98,7 @@ def laplace_on_xy_matrix(x, y, width):
             result[i, j] = term1 + term2 + term3
     return result
 
+#laplacian on both components for two series of points
 @njit(fastmath=True)
 def laplace_on_xy(x, y, width):
     n = x.shape[0]
@@ -111,9 +116,11 @@ def laplace_on_xy(x, y, width):
         result[i] = term1 + term2 + term3
     return result
 
+#laplacian on the second component matrix
 def laplace_on_y_matrix(x, y, width):
     return laplace_on_x_matrix(y, x, width)  # x and y swapped
 
+#kernel class
 class Kernel:
     def __init__(self, width):
         self.width = width
