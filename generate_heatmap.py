@@ -83,6 +83,7 @@ rhs = lambda x: laplace_f(x) + tau(f(x))
 boundary_condition = f
 
 start_time = time.time()
+#compute interpolant
 interpolant, coeff, points, boundary_points, residuals, boundary_residuals, errors, failed_early, times, laplace_interpolant = greedy_loop( 
     tau, 
     tau_der, 
