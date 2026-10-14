@@ -2,9 +2,10 @@
 Quickstart: f-Greedy Optimal Recovery with Mode Selection
 ---------------------------------------------------------
 This script runs the f-Greedy variant of the optimal recovery method 
-for a nonlinear PDE using Gaussian kernels. It supports two nonlinearities:
-  - "poly": τ(u) = u³
-  - "sin" : τ(u) = (1/20) * sin(π u)
+for the PDE -Δu + g(u) = F using Gaussian kernels. Internally, the
+solver uses Δu + τ(u) = rhs with τ = -g and rhs = -F. It supports:
+  - "poly": g(u) = u³, so τ(u) = -u³
+  - "sin" : g(u) = (1/20) * sin(π u), so τ(u) = -g(u)
 
 Workflow:
   1. Select nonlinearity mode via `MODE` ("poly" or "sin")
@@ -23,8 +24,8 @@ Results:
   - Log-scale plots of error evolution
 
 Configurable parameters:
-  - gamma (kernel width, default: 10)
-  - iterations (number of f-Greedy steps, default: 500)
+  - gamma (kernel width, default: 5)
+  - iterations (number of f-Greedy steps, default: 1000)
   - MODE ("poly" or "sin") for nonlinearity
   - solution_function ("kernel", "sin", "c2")
 """
@@ -40,38 +41,38 @@ from assets.collocation_functions import greedy_loop
 import matplotlib.pyplot as plt
 
 # --- Settings ---
-gamma = 10
+gamma = 5
 Kernel = KernelClass(gamma)
-iterations = 500
+iterations = 1000
 MODE = "poly"  # Change to "sin" for sine version
-solution_function ='kernel' #choose between kernel, sin and c2
+solution_function ='sin' #choose between kernel, sin and c2
 # --- Nonlinearity ---
 @njit
 def tau_poly(x):
-    return x ** 3
+    return - x ** 3
 
 @njit
 def tau_poly_der(x):
-    return 3 * x ** 2
+    return - 3 * x ** 2
 
 @njit
 def tau_poly_2der(x):
-    return 6 * x
+    return - 6 * x
 
 # -----------------------------
-# Sin version: tau = 1/20 sin(pi x)
+# Sin version: tau = -1/20 sin(pi x)
 # -----------------------------
 @njit
 def tau_sin(x):
-    return (1 / 20) * np.sin(np.pi * x)
+    return - (1 / 20) * np.sin(np.pi * x)
 
 @njit
 def tau_sin_der(x):
-    return (1 / 20) * np.pi * np.cos(np.pi * x)
+    return - (1 / 20) * np.pi * np.cos(np.pi * x)
 
 @njit
 def tau_sin_2der(x):
-    return - (1 / 20) * np.pi ** 2 * np.sin(np.pi * x)
+    return (1 / 20) * np.pi ** 2 * np.sin(np.pi * x)
 
 # -----------------------------
 # Select implementation here
@@ -106,7 +107,7 @@ def laplace_f_c2(points):
     dy = points[:, 1:2] - 0.5
     r2 = dx**2 + dy**2
     return 25 * r2**1.5
-kernel_for_sol=KernelClass(10)
+kernel_for_sol=KernelClass(gamma)
 f_k = lambda x: kernel_for_sol.kernel_matrix(x, np.array([[0.2, 0.5]]))
 laplace_f_k = lambda x: kernel_for_sol.laplace_on_x_matrix(x, np.array([[0.2, 0.5]]))
 

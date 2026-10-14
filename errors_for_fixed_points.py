@@ -1,8 +1,9 @@
 """
 Quickstart: Optimal Recovery with Increasing Centers
 ----------------------------------------------------
-This script benchmarks the *optimal recovery* collocation method for a nonlinear PDE
-as the number of collocation centers increases (from 0 up to `centres`).
+This script benchmarks the *optimal recovery* collocation method for
+-Δu + u³ = F as the number of collocation centers increases. Internally,
+the solver uses the equivalent equation Δu - u³ = -F.
 
 For each total_points value, it applies optimal recovery and computes:
   - Max solution error (‖u - u_hat‖∞)
@@ -18,7 +19,7 @@ Configurable parameters:
   - gamma (kernel width, default: 5)
   - fixed_ratio (boundary vs interior points, default: 0.25)
   - solution_function ("sin", "c2", "kernel")
-  - centres (max number of collocation points to sweep, default: 1000)
+  - centres (max number of collocation points to sweep, default: 500)
 """
 
 
@@ -38,21 +39,21 @@ boundary_points = data["boundary_points"]
 gamma = 5
 fixed_ratio = 0.25
 Kernel = KernelClass(gamma)
-solution_function ='c2' #choose between kernel, sin and c2
-centres = 1000
+solution_function = 'kernel' #choose between kernel, sin and c2
+centres = 500
 
 # --- Nonlinearity ---
 @njit
 def tau(x):
-    return x ** 3
+    return - x ** 3
 
 @njit
 def tau_der(x):
-    return 3 * x ** 2
+    return - 3 * x ** 2
 
 @njit
 def tau_2der(x):
-    return 6 * x
+    return - 6 * x
 
 # --- Solutions ---
 def f_sin(points):
@@ -75,7 +76,7 @@ def laplace_f_c2(points):
     r2 = dx**2 + dy**2
     return 25 * r2**1.5
 
-kernel_for_ip=KernelClass(10)
+kernel_for_ip=KernelClass(gamma)
 f_k = lambda x: kernel_for_ip.kernel_matrix(x, np.array([[0.2, 0.5]]))
 laplace_f_k = lambda x: kernel_for_ip.laplace_on_x_matrix(x, np.array([[0.2, 0.5]]))
 
