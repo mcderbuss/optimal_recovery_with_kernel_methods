@@ -66,6 +66,9 @@ def optimal_recovery(points, tau, tau_der, right_hand_side, boundary_condition, 
     """
     Perform optimal recovery for PDE-constrained kernel interpolation.
 
+    The interior equation is Δu + tau(u) = right_hand_side. For the
+    standard form -Δu + g(u) = F, pass tau = -g and right_hand_side = -F.
+
     Parameters
     ----------
     points : np.ndarray
@@ -290,6 +293,9 @@ def greedy_loop(
 ):
     """
     Adaptive greedy loop for PDE recovery with kernel collocation.
+
+    Interior residuals use Δu + tau(u) - right_hand_side. For the
+    standard form -Δu + g(u) = F, pass tau = -g and right_hand_side = -F.
 
     At each iteration, the algorithm finds the worst residual (interior or boundary),
     adds the corresponding point to the collocation set, and recomputes the 
